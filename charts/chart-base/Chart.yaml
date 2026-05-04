@@ -1,0 +1,21 @@
+apiVersion: v2
+name: chart-base
+description: Helm chart base genérico para aplicações stateless (Deployment) e stateful (StatefulSet) em Kubernetes, com suporte opcional a Istio e cert-manager.
+type: application
+version: 0.2.0
+appVersion: "1.0.0"
+keywords:
+  - kubernetes
+  - deployment
+  - statefulset
+  - istio
+  - cert-manager
+  - generic
+maintainers:
+  - name: Robert Silva
+    email: robertsilva.info@gmail.com
+home: https://github.com/robertsilvatech/rst-helm-charts
+sources:
+  - https://github.com/robertsilvatech/rst-helm-charts
+annotations:
+  category: Infrastructure

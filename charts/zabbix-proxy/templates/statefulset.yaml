@@ -1,0 +1,160 @@
+{{- $serverHost := required "serverHost is required" .Values.serverHost -}}
+{{- $psk := .Values.psk -}}
+{{- if $psk.enabled -}}
+  {{- if and (not $psk.value) (not $psk.existingSecret) -}}
+    {{- fail "psk.enabled=true requer psk.value OU psk.existingSecret" -}}
+  {{- end -}}
+  {{- if not $psk.identity -}}
+    {{- fail "psk.enabled=true requer psk.identity" -}}
+  {{- end -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "zabbix-proxy.fullname" . }}
+  labels:
+    {{- include "zabbix-proxy.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  serviceName: {{ include "zabbix-proxy.fullname" . }}
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "zabbix-proxy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "zabbix-proxy.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "zabbix-proxy.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        fsGroup: 1997
+        runAsNonRoot: true
+        runAsUser: 1997
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: zabbix-proxy
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: zbx-proxy
+              containerPort: 10051
+              protocol: TCP
+          env:
+            - name: ZBX_HOSTNAME
+              {{- if .Values.hostname }}
+              value: {{ .Values.hostname | quote }}
+              {{- else }}
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+              {{- end }}
+            - name: ZBX_SERVER_HOST
+              value: {{ $serverHost | quote }}
+            - name: ZBX_SERVER_PORT
+              value: {{ .Values.serverPort | quote }}
+            - name: ZBX_PROXYMODE
+              value: {{ ternary "0" "1" (eq .Values.mode "active") | quote }}
+            - name: ZBX_TIMEOUT
+              value: {{ .Values.timeout | quote }}
+            - name: ZBX_DEBUGLEVEL
+              value: {{ .Values.debugLevel | quote }}
+            - name: ZBX_PROXYBUFFERMODE
+              value: {{ .Values.proxyBufferMode | quote }}
+            {{- if $psk.enabled }}
+            {{- if eq .Values.mode "active" }}
+            - name: ZBX_TLSCONNECT
+              value: psk
+            {{- else }}
+            - name: ZBX_TLSACCEPT
+              value: psk
+            {{- end }}
+            - name: ZBX_TLSPSKIDENTITY
+              value: {{ $psk.identity | quote }}
+            - name: ZBX_TLSPSKFILE
+              value: /var/lib/zabbix/.psk/proxy.psk
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            tcpSocket:
+              port: zbx-proxy
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 8
+          livenessProbe:
+            tcpSocket:
+              port: zbx-proxy
+            initialDelaySeconds: 120
+            timeoutSeconds: 3
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/zabbix
+            {{- if $psk.enabled }}
+            - name: psk
+              mountPath: /var/lib/zabbix/.psk
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      {{- if or $psk.enabled .Values.extraVolumes }}
+      volumes:
+        {{- if $psk.enabled }}
+        - name: psk
+          secret:
+            secretName: {{ include "zabbix-proxy.pskSecretName" . }}
+            items:
+              - key: proxy.psk
+                path: proxy.psk
+                mode: 0400
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode | default "ReadWriteOnce" }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}

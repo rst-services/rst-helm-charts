@@ -1,0 +1,27 @@
+# Exemplo: Zabbix Proxy com TLS PSK (proxy <-> server criptografado).
+#
+# Gere o PSK antes:
+#   openssl rand -hex 32
+#
+# Depois:
+#   helm install zbx-cliente2 rst/zabbix-proxy -f examples/zabbix-proxy-psk.yaml \
+#     --set psk.value="<output do openssl>"
+#
+# OU referencie um Secret existente:
+#   kubectl create secret generic zbx-psk-cliente2 \
+#     --from-literal=proxy.psk="<output do openssl>"
+#   helm install zbx-cliente2 rst/zabbix-proxy -f examples/zabbix-proxy-psk.yaml \
+#     --set psk.existingSecret=zbx-psk-cliente2
+
+serverHost: zabbix.empresa.com.br
+hostname: PROXY-CLIENTE2
+mode: active
+
+psk:
+  enabled: true
+  identity: PSK-PROXY-CLIENTE2
+  # value: ""           # passe via --set ou aqui (não commitar!)
+  # existingSecret: ""  # OU referencie um Secret pré-existente
+
+persistence:
+  size: 10Gi

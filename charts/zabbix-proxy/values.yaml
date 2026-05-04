@@ -1,0 +1,117 @@
+# =============================================================================
+# zabbix-proxy default values
+# =============================================================================
+# Chart opinionado: defaults vêm prontos para um Zabbix Proxy SQLite ativo.
+# Bastam `serverHost` (obrigatório) e idealmente um `hostname` único.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Conexão com Zabbix Server
+# -----------------------------------------------------------------------------
+# Endereço do Zabbix Server (DNS ou IP). Em modo passive, lista de servers permitidos.
+serverHost: ""
+serverPort: 10051
+
+# active | passive
+mode: active
+
+# -----------------------------------------------------------------------------
+# Identidade
+# -----------------------------------------------------------------------------
+# Nome do proxy registrado no Zabbix Server.
+# Vazio = nome do pod (StatefulSet ordinal estável: <release>-zabbix-proxy-0).
+hostname: ""
+
+# -----------------------------------------------------------------------------
+# TLS PSK (proxy <-> server)
+# -----------------------------------------------------------------------------
+psk:
+  enabled: false
+  # ZBX_TLSPSKIDENTITY
+  identity: ""
+  # Provê o PSK por UMA das duas formas:
+  # 1) value: chart cria um Secret com a chave 'proxy.psk'
+  # 2) existingSecret: nome de Secret pré-existente com chave 'proxy.psk'
+  value: ""
+  existingSecret: ""
+
+# -----------------------------------------------------------------------------
+# Tunables Zabbix
+# -----------------------------------------------------------------------------
+proxyBufferMode: hybrid   # disk | memory | hybrid (Zabbix 7+)
+timeout: 30
+debugLevel: 3
+
+# -----------------------------------------------------------------------------
+# Imagem
+# -----------------------------------------------------------------------------
+image:
+  repository: zabbix/zabbix-proxy-sqlite3
+  tag: ubuntu-7.0-latest
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# -----------------------------------------------------------------------------
+# Persistência (SQLite buffer)
+# -----------------------------------------------------------------------------
+persistence:
+  size: 5Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+
+# -----------------------------------------------------------------------------
+# Pod
+# -----------------------------------------------------------------------------
+replicas: 1
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+podAnnotations: {}
+  # prometheus.io/scrape: "true"
+  # prometheus.io/port: "10051"
+podLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# -----------------------------------------------------------------------------
+# Service
+# -----------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 10051
+  # headless: true → clusterIP: None (DNS estável por pod)
+  headless: false
+
+# -----------------------------------------------------------------------------
+# ServiceAccount
+# -----------------------------------------------------------------------------
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+
+# -----------------------------------------------------------------------------
+# Escape hatches
+# -----------------------------------------------------------------------------
+# env adicional (formato nativo k8s, suporta valueFrom)
+extraEnv: []
+  # - name: ZBX_VAULTURL
+  #   value: https://vault.example.com
+
+# Volumes/mounts adicionais (ex: configmap com snippets em /etc/zabbix/zabbix_proxy.d)
+extraVolumes: []
+  # - name: snippets
+  #   configMap:
+  #     name: zabbix-proxy-snippets
+extraVolumeMounts: []
+  # - name: snippets
+  #   mountPath: /etc/zabbix/zabbix_proxy.d
+  #   readOnly: true

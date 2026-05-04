@@ -1,0 +1,42 @@
+# Exemplo: StatefulSet genérico com PVC por pod (app que precisa de identidade
+# estável e disco próprio).
+#
+# helm install meu-cache rst/chart-base -f examples/chart-base-statefulset.yaml
+
+kind: StatefulSet
+replicaCount: 1
+
+image:
+  repository: redis
+  tag: "7.4-alpine"
+
+container:
+  ports:
+    - name: redis
+      containerPort: 6379
+
+statefulSet:
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+    - name: data
+      accessModes: [ReadWriteOnce]
+      size: 10Gi
+      mountPath: /data
+
+service:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+
+readinessProbe:
+  tcpSocket:
+    port: redis
+  initialDelaySeconds: 10
+
+livenessProbe:
+  tcpSocket:
+    port: redis
+  initialDelaySeconds: 30

@@ -1,0 +1,22 @@
+Zabbix Proxy "{{ include "zabbix-proxy.fullname" . }}" foi instalado.
+
+  Modo:        {{ .Values.mode }}
+  Server host: {{ .Values.serverHost }}
+  Hostname:    {{ if .Values.hostname }}{{ .Values.hostname }}{{ else }}<pod-name>{{ end }}
+  PSK:         {{ ternary "habilitado" "desabilitado" .Values.psk.enabled }}
+
+Próximos passos:
+
+1. No Zabbix Server, cadastre o proxy:
+   Administration → Proxies → Create proxy
+     Name:        {{ if .Values.hostname }}{{ .Values.hostname }}{{ else }}{{ include "zabbix-proxy.fullname" . }}-0{{ end }}
+     Mode:        {{ .Values.mode | title }}
+     {{- if eq .Values.mode "passive" }}
+     Address:     {{ include "zabbix-proxy.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+     {{- end }}
+
+2. Verifique se o pod está saudável:
+   kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+3. Logs:
+   kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/instance={{ .Release.Name }} --tail=50 -f

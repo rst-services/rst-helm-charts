@@ -1,0 +1,113 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'charts/**'
+      - 'examples/**'
+      - '.github/workflows/pr-validation.yml'
+
+# Cancela runs antigos quando novo push acontece no mesmo PR.
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  detect-charts:
+    name: Detectar charts modificados
+    runs-on: ubuntu-latest
+    outputs:
+      charts: ${{ steps.filter.outputs.changes }}
+      any: ${{ steps.filter.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Filter charts changed
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # Cada filtro corresponde a um chart presente em charts/.
+          # Adicione novos charts aqui ao introduzi-los no repo.
+          filters: |
+            chart-base:
+              - 'charts/chart-base/**'
+              - 'examples/chart-base-*.yaml'
+            zabbix-proxy:
+              - 'charts/zabbix-proxy/**'
+              - 'examples/zabbix-proxy-*.yaml'
+
+      - name: Compute any_changed
+        run: |
+          if [ "${{ steps.filter.outputs.changes }}" = "[]" ]; then
+            echo "any_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  lint-and-template:
+    name: Lint + template (${{ matrix.chart }})
+    needs: detect-charts
+    if: needs.detect-charts.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chart: ${{ fromJSON(needs.detect-charts.outputs.charts) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.2
+
+      - name: helm lint
+        run: |
+          set -euo pipefail
+          # Para charts que exigem `required`, fornecemos placeholder mínimo
+          # apenas para o lint passar (não afeta correctness do chart).
+          case "${{ matrix.chart }}" in
+            zabbix-proxy)
+              helm lint "charts/${{ matrix.chart }}" --set serverHost=ci-test.example.com
+              ;;
+            *)
+              helm lint "charts/${{ matrix.chart }}"
+              ;;
+          esac
+
+      - name: helm template (todos os examples relacionados)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          examples=( examples/${{ matrix.chart }}-*.yaml )
+          if [ "${#examples[@]}" -eq 0 ]; then
+            echo "::warning::Nenhum example encontrado para ${{ matrix.chart }} (pulando)"
+            exit 0
+          fi
+          for f in "${examples[@]}"; do
+            echo "=== rendering $f ==="
+            case "${{ matrix.chart }}" in
+              zabbix-proxy)
+                # zabbix-proxy-psk.yaml deixa psk.value vazio propositalmente;
+                # injetamos placeholder pra render passar.
+                helm template ci "charts/${{ matrix.chart }}" -f "$f" --set psk.value=ci-placeholder > /dev/null
+                ;;
+              *)
+                helm template ci "charts/${{ matrix.chart }}" -f "$f" > /dev/null
+                ;;
+            esac
+          done
+
+  no-charts-changed:
+    name: Sem charts modificados
+    needs: detect-charts
+    if: needs.detect-charts.outputs.any == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Nenhum chart foi modificado neste PR — validação rápida finalizada."

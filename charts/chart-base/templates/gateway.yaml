@@ -1,0 +1,28 @@
+{{- if .Values.virtualService.letsEncrypt.enabled }}
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: {{ include "chart-base.fullname" . }}-gateway
+  namespace: istio-system
+  labels:
+    {{- include "chart-base.labels" . | nindent 4 }}
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        {{- include "chart-base.gateway.uniqueHosts" . | nindent 8 }}
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: {{ include "chart-base.fullname" . }}-tls-cert
+      hosts:
+        {{- include "chart-base.gateway.uniqueHosts" . | nindent 8 }}
+{{- end }}

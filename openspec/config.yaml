@@ -1,0 +1,75 @@
+schema: spec-driven
+
+context: |
+  Repositório de charts Helm públicos mantidos por @robertsilvatech.
+
+  ## Stack
+  - Helm 3 (kubeVersion >=1.24)
+  - Kubernetes / OpenShift
+  - Istio + cert-manager (opcionais, em chart-base)
+
+  ## Arquitetura
+  Charts INDEPENDENTES (NÃO library pattern). Cada chart:
+  - é autocontido (helpers próprios em `_helpers.tpl`)
+  - é versionado independentemente em `Chart.yaml`
+  - é diretamente instalável via `helm install`
+  - tem CHANGELOG.md próprio
+
+  Pequena duplicação de helpers entre charts é aceitável; troca-se DRY por
+  isolamento e simplicidade. Migrar pra library pattern só se a duplicação
+  começar a doer (regra: terceira repetição).
+
+  ## Charts atuais
+  - `chart-base` (genérico): Deployment OU StatefulSet via toggle `kind`,
+    suporta Istio VirtualService + cert-manager Certificate/Gateway.
+  - `zabbix-proxy` (opinionado): Zabbix Proxy SQLite (Zabbix 7.0 LTS),
+    API flat e mínima — `serverHost` obrigatório, `hostname`, `mode`, PSK.
+
+  ## Convenções
+  - Labels seguem Kubernetes recommended labels (`app.kubernetes.io/*`).
+  - Selector labels (imutáveis) são APENAS `app.kubernetes.io/name`
+    + `app.kubernetes.io/instance`. Nunca `component`, `version`, etc.
+  - Charts monocomponente usam values flat (sem wrapper redundante por
+    nome do chart). Wrapper só faz sentido em umbrella charts.
+  - Charts opinionados aplicam security defaults: `runAsNonRoot: true`,
+    `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`,
+    `fsGroup` correto pra imagem.
+  - Secrets usam `stringData` (não `data` base64).
+  - Validação em template: `required "..."` em campos obrigatórios e
+    `fail "..."` em invariantes complexas. Mensagens em pt-BR.
+  - Helpers padrão por chart: `<chart>.name`, `<chart>.fullname`,
+    `<chart>.chart`, `<chart>.labels`, `<chart>.selectorLabels`,
+    `<chart>.serviceAccountName`.
+
+  ## Versionamento e release
+  - SemVer por chart, independente.
+  - Tags Git no formato `<chart-name>-<version>` (ex: `chart-base-0.2.0`).
+  - CHANGELOG.md por chart, formato Keep-a-Changelog.
+  - Breaking change → bump major + documentar migração no README do repo.
+  - Pré-release (0.x.y) é tolerante a breaking em minor; após 1.0 só em major.
+
+  ## Idioma
+  - Documentação (README, CHANGELOG, comentários) e mensagens de erro de
+    template: pt-BR.
+  - Nomes de variáveis, valores YAML, identificadores: inglês.
+  - Commits e nomes de arquivos: inglês.
+
+  ## Estrutura do repo
+  - `charts/<nome>/`         → cada chart isolado
+  - `examples/`              → values prontos pra `helm install -f`
+  - `openspec/`              → specs e changes
+  - `README.md`              → catálogo de charts + tabela de migração
+
+rules:
+  proposal:
+    - "Inclua sempre uma seção Não-objetivos deixando claro o que está fora do escopo."
+    - "Identifique o tipo de impacto (novo chart, mudança breaking, mudança compatível)."
+    - "Para mudanças em chart existente, cite o caminho relativo (charts/<nome>/...)."
+  tasks:
+    - "Cada task deve ser verificável (helm lint, helm template, dry-run)."
+    - "Inclua atualização de README/CHANGELOG quando aplicável."
+    - "Quebre tasks em chunks de no máximo ~2h cada."
+  specs:
+    - "Specs descrevem invariantes e contratos do chart, não detalhes de implementação."
+    - "Use linguagem normativa (SHALL/MUST) em afirmações de comportamento."
+    - "Cada spec é uma capability — agrupe requisitos relacionados."

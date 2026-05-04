@@ -1,0 +1,233 @@
+# =============================================================================
+# chart-base default values
+# =============================================================================
+# Suporta Deployment (default) e StatefulSet via toggle `kind`.
+# Veja examples/ no repo raiz para values prontos (ex: zabbix-proxy).
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Tipo de workload
+# -----------------------------------------------------------------------------
+# Valores aceitos: Deployment | StatefulSet
+kind: Deployment
+
+# Sobrescritas de nome (opcional)
+nameOverride: ""
+fullnameOverride: ""
+
+# -----------------------------------------------------------------------------
+# Replicas e estratégia
+# -----------------------------------------------------------------------------
+replicaCount: 1
+
+# Usado quando kind: Deployment
+strategy:
+  type: RollingUpdate
+  # rollingUpdate:
+  #   maxSurge: 25%
+  #   maxUnavailable: 25%
+
+# Usado quando kind: StatefulSet
+statefulSet:
+  # serviceName: "" deixa vazio para usar o Service deste chart
+  serviceName: ""
+  podManagementPolicy: Parallel  # Parallel | OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  # volumeClaimTemplates: PVCs por pod (ordinal). Use isto em vez de
+  # persistentVolume.pvcs[] quando kind: StatefulSet.
+  volumeClaimTemplates: []
+    # - name: data
+    #   accessModes: [ReadWriteOnce]
+    #   storageClassName: ""
+    #   size: 10Gi
+    #   mountPath: /var/lib/app
+
+# -----------------------------------------------------------------------------
+# Imagem
+# -----------------------------------------------------------------------------
+image:
+  repository: docker.io/nginx
+  tag: "latest"
+  # digest: "sha256:..."  # se setado, ignora tag
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+  # - gitlab-registry-secret
+
+# -----------------------------------------------------------------------------
+# Comando / args / env
+# -----------------------------------------------------------------------------
+command: []
+args: []
+
+# env: lista de envs no formato nativo do k8s (suporta valueFrom).
+env: []
+  # - name: ZBX_HOSTNAME
+  #   valueFrom:
+  #     fieldRef:
+  #       fieldPath: metadata.name
+  # - name: SIMPLE_VAR
+  #   value: "hello"
+
+# envFrom adicional (além do configmap/secret deste chart)
+envFrom: []
+  # - configMapRef:
+  #     name: extra-config
+  # - secretRef:
+  #     name: extra-secret
+
+# -----------------------------------------------------------------------------
+# Portas e Service
+# -----------------------------------------------------------------------------
+container:
+  ports:
+    - name: http
+      containerPort: 8080
+      protocol: TCP
+
+service:
+  enabled: true
+  type: ClusterIP
+  # headless: true → clusterIP: None (necessário para identidade DNS estável
+  # em StatefulSet). Default: false.
+  headless: false
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: http
+      # nodePort: 30080  # apenas quando type: NodePort
+
+# -----------------------------------------------------------------------------
+# Recursos e probes
+# -----------------------------------------------------------------------------
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+readinessProbe: {}
+  # httpGet:
+  #   path: /health
+  #   port: http
+  # initialDelaySeconds: 10
+
+livenessProbe: {}
+  # tcpSocket:
+  #   port: http
+  # initialDelaySeconds: 30
+
+startupProbe: {}
+
+# -----------------------------------------------------------------------------
+# Segurança
+# -----------------------------------------------------------------------------
+podSecurityContext: {}
+  # runAsNonRoot: true
+  # runAsUser: 1000
+  # fsGroup: 1000
+
+securityContext: {}
+  # allowPrivilegeEscalation: false
+  # readOnlyRootFilesystem: true
+  # capabilities:
+  #   drop: [ALL]
+
+# -----------------------------------------------------------------------------
+# Agendamento
+# -----------------------------------------------------------------------------
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+priorityClassName: ""
+
+# -----------------------------------------------------------------------------
+# Pod metadata
+# -----------------------------------------------------------------------------
+podAnnotations: {}
+  # prometheus.io/scrape: "true"
+  # prometheus.io/port: "9090"
+podLabels: {}
+
+# -----------------------------------------------------------------------------
+# ServiceAccount
+# -----------------------------------------------------------------------------
+serviceAccount:
+  # create: true cria um SA novo. false usa o `name` informado (ou "default").
+  create: false
+  name: ""
+  annotations: {}
+    # eks.amazonaws.com/role-arn: arn:aws:iam::123:role/foo
+    # iam.gke.io/gcp-service-account: foo@bar.iam.gserviceaccount.com
+
+# -----------------------------------------------------------------------------
+# InitContainers / extraVolumes / extraVolumeMounts
+# -----------------------------------------------------------------------------
+initContainers: []
+  # - name: fix-permissions
+  #   image: busybox:1.36
+  #   command: ["sh","-c","chown -R 1997:1997 /var/lib/zabbix"]
+  #   volumeMounts:
+  #     - name: data
+  #       mountPath: /var/lib/zabbix
+
+extraVolumes: []
+  # - name: zabbix-config
+  #   configMap:
+  #     name: zabbix-proxy-snippets
+
+extraVolumeMounts: []
+  # - name: zabbix-config
+  #   mountPath: /etc/zabbix/zabbix_proxy.d
+  #   readOnly: true
+
+# -----------------------------------------------------------------------------
+# ConfigMap / Secret gerados pelo chart
+# -----------------------------------------------------------------------------
+configmap:
+  enabled: false
+  # variables são injetadas como envFrom no container.
+  variables: {}
+    # KEY: value
+
+secret:
+  enabled: false
+  # stringData → strings cruas (recomendado).
+  # data → exige base64.
+  variables: {}
+    # KEY: rawvalue
+
+# -----------------------------------------------------------------------------
+# PVC standalone (para Deployment com volume compartilhado RWX)
+# -----------------------------------------------------------------------------
+# Para StatefulSet, prefira statefulSet.volumeClaimTemplates.
+persistentVolume:
+  enabled: false
+  pvcs: []
+    # - name: data
+    #   size: 10Gi
+    #   accessMode: ReadWriteMany
+    #   storageClassName: nfs-csi
+    #   mountPath: /data
+
+# -----------------------------------------------------------------------------
+# Istio VirtualService + cert-manager (Let's Encrypt)
+# -----------------------------------------------------------------------------
+virtualService:
+  enabled: false
+  letsEncrypt:
+    enabled: false
+    issuerName: letsencrypt-cluster
+  gateway: default-gateway
+  domain: example.com
+  routes: []
+    # - name: app
+    #   prefix: /
+    #   port: 8080
+    #   hosts:
+    #     - app

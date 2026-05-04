@@ -1,0 +1,24 @@
+# Helm
+*.tgz
+charts/*/charts/
+charts/*/Chart.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+*~
+
+# Backups de scripts
+*.helmignore.bak
+
+# OpenSpec scratch (mantém specs e changes versionados)
+openspec/.cache/

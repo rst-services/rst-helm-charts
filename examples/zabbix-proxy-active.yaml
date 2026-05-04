@@ -1,0 +1,29 @@
+# Exemplo: Zabbix Proxy modo active (mais comum) para um cliente.
+#
+# helm install zbx-cliente1 rst/zabbix-proxy -f examples/zabbix-proxy-active.yaml
+
+serverHost: zabbix.empresa.com.br
+hostname: PROXY-CLIENTE1
+mode: active
+
+persistence:
+  size: 5Gi
+  storageClass: standard
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+# Opcional: snippets de configuração extras
+# extraVolumes:
+#   - name: snippets
+#     configMap:
+#       name: zabbix-proxy-snippets
+# extraVolumeMounts:
+#   - name: snippets
+#     mountPath: /etc/zabbix/zabbix_proxy.d
+#     readOnly: true

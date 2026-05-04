@@ -1,0 +1,149 @@
+name: Release Chart
+
+on:
+  push:
+    tags:
+      # Captura tags no formato <chart-name>-<version>
+      # Ex: chart-base-0.2.0, zabbix-proxy-0.1.0, chart-base-1.0.0-rc1
+      - '*-*'
+
+permissions:
+  contents: write   # criar GitHub Release
+  packages: write   # push OCI no ghcr.io
+
+jobs:
+  release:
+    name: Empacotar e publicar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.2
+
+      # yq (Go version, mikefarah) já vem pré-instalado em ubuntu-latest.
+
+      - name: Parse tag → chart_name + version
+        id: parse
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          # Regex aceita SemVer com pré-release: 0.1.0, 1.2.3, 1.0.0-rc1, 1.0.0-alpha.2
+          if [[ "$TAG" =~ ^(.+)-([0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?)$ ]]; then
+            CHART="${BASH_REMATCH[1]}"
+            VER="${BASH_REMATCH[2]}"
+          else
+            echo "::error::Tag '${TAG}' não está no formato <chart-name>-<version>"
+            exit 1
+          fi
+          echo "chart_name=${CHART}" >> "$GITHUB_OUTPUT"
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+          echo "Tag '${TAG}' → chart='${CHART}' version='${VER}'"
+
+      - name: Validar diretório do chart
+        run: |
+          set -euo pipefail
+          CHART="${{ steps.parse.outputs.chart_name }}"
+          if [ ! -d "charts/${CHART}" ]; then
+            echo "::error::Diretório charts/${CHART} não existe"
+            exit 1
+          fi
+          if [ ! -f "charts/${CHART}/Chart.yaml" ]; then
+            echo "::error::charts/${CHART}/Chart.yaml não encontrado"
+            exit 1
+          fi
+
+      - name: Validar version da tag bate com Chart.yaml
+        run: |
+          set -euo pipefail
+          CHART="${{ steps.parse.outputs.chart_name }}"
+          EXPECTED="${{ steps.parse.outputs.version }}"
+          ACTUAL="$(yq -r '.version' "charts/${CHART}/Chart.yaml")"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Mismatch: tag pede version=${EXPECTED} mas Chart.yaml tem version=${ACTUAL}"
+            exit 1
+          fi
+          echo "OK: ambos em ${ACTUAL}"
+
+      - name: Empacotar chart
+        id: package
+        run: |
+          set -euo pipefail
+          CHART="${{ steps.parse.outputs.chart_name }}"
+          mkdir -p /tmp/release
+          helm package "charts/${CHART}" -d /tmp/release
+          PKG="/tmp/release/${CHART}-${{ steps.parse.outputs.version }}.tgz"
+          if [ ! -f "$PKG" ]; then
+            echo "::error::Pacote esperado em $PKG não foi gerado"
+            exit 1
+          fi
+          echo "package_path=${PKG}" >> "$GITHUB_OUTPUT"
+          echo "Empacotado: $PKG"
+
+      - name: Login no GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io \
+            --username "${{ github.actor }}" --password-stdin
+
+      - name: Push OCI
+        run: |
+          set -euo pipefail
+          helm push "${{ steps.package.outputs.package_path }}" oci://ghcr.io/rst-services/charts
+
+      - name: Logout do GHCR
+        if: always()
+        run: helm registry logout ghcr.io || true
+
+      - name: Extrair release notes do CHANGELOG
+        id: notes
+        run: |
+          set -euo pipefail
+          CHART="${{ steps.parse.outputs.chart_name }}"
+          VER="${{ steps.parse.outputs.version }}"
+          CHANGELOG="charts/${CHART}/CHANGELOG.md"
+          NOTES_FILE="/tmp/release-notes.md"
+
+          if [ ! -f "$CHANGELOG" ]; then
+            echo "::warning::$CHANGELOG não existe; release notes ficam vazias"
+            echo "Release notes pendentes — atualize CHANGELOG.md em release futura." > "$NOTES_FILE"
+          else
+            # Extrai conteúdo entre `## <ver>` e a próxima linha começando com `## ` (ou EOF)
+            awk -v ver="$VER" '
+              $0 ~ "^##[[:space:]]+" ver "([[:space:]]|$)" { found=1; next }
+              found && /^##[[:space:]]/ { exit }
+              found { print }
+            ' "$CHANGELOG" > "$NOTES_FILE"
+
+            if [ ! -s "$NOTES_FILE" ]; then
+              echo "::warning::Seção '## ${VER}' não encontrada em $CHANGELOG"
+              echo "Release notes pendentes — atualize CHANGELOG.md." > "$NOTES_FILE"
+            fi
+          fi
+
+          # Adiciona trailer com instalação OCI (sem heredoc pra não conflitar
+          # com indentação do block scalar YAML).
+          {
+            printf '\n---\n\n'
+            printf '### Instalação\n\n'
+            printf '```bash\n'
+            printf 'helm registry login ghcr.io\n'
+            printf 'helm install <release-name> oci://ghcr.io/rst-services/charts/%s --version %s\n' "$CHART" "$VER"
+            printf '```\n\n'
+            printf 'Detalhes em [docs/onboarding-cliente.md](https://github.com/%s/blob/main/docs/onboarding-cliente.md).\n' "${{ github.repository }}"
+          } >> "$NOTES_FILE"
+
+          echo "notes_file=${NOTES_FILE}" >> "$GITHUB_OUTPUT"
+          echo "--- Release notes ---"
+          cat "$NOTES_FILE"
+
+      - name: Criar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: ${{ steps.notes.outputs.notes_file }}
+          files: ${{ steps.package.outputs.package_path }}
+          draft: false
+          prerelease: ${{ contains(steps.parse.outputs.version, '-') }}

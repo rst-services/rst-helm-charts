@@ -1,0 +1,61 @@
+# Exemplo: Deployment simples (app stateless de cliente)
+#
+# helm install minha-api rst/chart-base -f examples/chart-base-deployment.yaml
+
+kind: Deployment
+replicaCount: 2
+
+image:
+  repository: registry.cliente.com/api
+  tag: v1.2.3
+
+container:
+  ports:
+    - name: http
+      containerPort: 8080
+
+service:
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+
+env:
+  - name: APP_ENV
+    value: production
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: minha-api-secrets
+        key: database-url
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
