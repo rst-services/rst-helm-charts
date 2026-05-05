@@ -2,10 +2,6 @@
 #
 # helm install zbx-cliente1 rst/zabbix-proxy -f examples/zabbix-proxy-active.yaml
 
-serverHost: zabbix.empresa.com.br
-hostname: PROXY-CLIENTE1
-mode: active
-
 persistence:
   size: 5Gi
   storageClass: standard
@@ -17,6 +13,22 @@ resources:
   limits:
     cpu: 500m
     memory: 1Gi
+
+# Toda config do Zabbix entra aqui — chaves seguem o naming nativo do image.
+# Ref: https://hub.docker.com/r/zabbix/zabbix-proxy-sqlite3
+extraEnv:
+  - name: ZBX_HOSTNAME
+    value: "PROXY-CLIENTE1"
+  - name: ZBX_SERVER_HOST
+    value: "zabbix.empresa.com.br"
+  - name: ZBX_PROXYMODE
+    value: "0"                          # 0=active (default) | 1=passive
+  - name: ZBX_PROXYBUFFERMODE
+    value: "hybrid"
+  - name: ZBX_DEBUGLEVEL
+    value: "3"
+  - name: ZBX_TIMEOUT
+    value: "30"
 
 # Opcional: snippets de configuração extras
 # extraVolumes:

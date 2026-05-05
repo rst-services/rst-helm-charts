@@ -1,27 +1,42 @@
 # Exemplo: Zabbix Proxy com TLS PSK (proxy <-> server criptografado).
 #
-# Gere o PSK antes:
-#   openssl rand -hex 32
+# 1) Gere o PSK e crie o Secret:
+#      openssl rand -hex 32 | tr -d '\n' > /tmp/proxy.psk
+#      kubectl create secret generic zbx-psk-cliente2 \
+#        --from-file=proxy.psk=/tmp/proxy.psk
 #
-# Depois:
-#   helm install zbx-cliente2 rst/zabbix-proxy -f examples/zabbix-proxy-psk.yaml \
-#     --set psk.value="<output do openssl>"
-#
-# OU referencie um Secret existente:
-#   kubectl create secret generic zbx-psk-cliente2 \
-#     --from-literal=proxy.psk="<output do openssl>"
-#   helm install zbx-cliente2 rst/zabbix-proxy -f examples/zabbix-proxy-psk.yaml \
-#     --set psk.existingSecret=zbx-psk-cliente2
-
-serverHost: zabbix.empresa.com.br
-hostname: PROXY-CLIENTE2
-mode: active
-
-psk:
-  enabled: true
-  identity: PSK-PROXY-CLIENTE2
-  # value: ""           # passe via --set ou aqui (não commitar!)
-  # existingSecret: ""  # OU referencie um Secret pré-existente
+# 2) Instale o chart:
+#      helm install zbx-cliente2 rst/zabbix-proxy -f examples/zabbix-proxy-psk.yaml
 
 persistence:
   size: 10Gi
+
+# Monta o Secret do PSK em /var/lib/zabbix/.psk/proxy.psk
+extraVolumes:
+  - name: psk
+    secret:
+      secretName: zbx-psk-cliente2
+      items:
+        - key: proxy.psk
+          path: proxy.psk
+          mode: 0400
+extraVolumeMounts:
+  - name: psk
+    mountPath: /var/lib/zabbix/.psk
+    readOnly: true
+
+# Config do Zabbix — habilita PSK no canal proxy → server
+# Ref: https://hub.docker.com/r/zabbix/zabbix-proxy-sqlite3
+extraEnv:
+  - name: ZBX_HOSTNAME
+    value: "PROXY-CLIENTE2"
+  - name: ZBX_SERVER_HOST
+    value: "zabbix.empresa.com.br"
+  - name: ZBX_PROXYMODE
+    value: "0"
+  - name: ZBX_TLSCONNECT                # active proxy: TLS de saída
+    value: "psk"
+  - name: ZBX_TLSPSKIDENTITY
+    value: "PSK-PROXY-CLIENTE2"
+  - name: ZBX_TLSPSKFILE
+    value: "/var/lib/zabbix/.psk/proxy.psk"

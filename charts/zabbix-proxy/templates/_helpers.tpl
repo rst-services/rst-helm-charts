@@ -2,17 +2,13 @@
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
+{{/*
+StatefulSet/Service/Pod nome = release name diretamente (em vez do padrão
+Bitnami `<release>-<chart>`). Isso resulta em pods curtos: <release>-0, -1, ...
+ZBX_HOSTNAME via fieldRef.metadata.name herda esse nome curto.
+*/}}
 {{- define "zabbix-proxy.fullname" -}}
-{{- if .Values.fullnameOverride -}}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- $name := default .Chart.Name .Values.nameOverride -}}
-{{- if contains $name .Release.Name -}}
-{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-{{- end -}}
+{{- default .Release.Name .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{- define "zabbix-proxy.chart" -}}
@@ -38,17 +34,5 @@ app.kubernetes.io/part-of: zabbix
 {{- default (include "zabbix-proxy.fullname" .) .Values.serviceAccount.name -}}
 {{- else -}}
 {{- default "default" .Values.serviceAccount.name -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Nome do Secret que contém o PSK. Pode ser referência externa (existingSecret)
-ou criado pelo chart.
-*/}}
-{{- define "zabbix-proxy.pskSecretName" -}}
-{{- if .Values.psk.existingSecret -}}
-{{- .Values.psk.existingSecret -}}
-{{- else -}}
-{{- printf "%s-psk" (include "zabbix-proxy.fullname" .) -}}
 {{- end -}}
 {{- end -}}

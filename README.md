@@ -7,7 +7,7 @@ Helm charts mantidos por [@robertsilvatech](https://github.com/robertsilvatech),
 | Chart | Versão | App | Descrição |
 |-------|--------|-----|-----------|
 | [chart-base](charts/chart-base) | 0.2.0 | — | Chart genérico para workloads stateless (Deployment) e stateful (StatefulSet), com suporte opcional a Istio + cert-manager. |
-| [zabbix-proxy](charts/zabbix-proxy) | 0.1.0 | Zabbix 7.0.16 | Chart opinionado para Zabbix Proxy SQLite. API flat e mínima (`serverHost`, `hostname`, `mode`), PSK e persistência. |
+| [zabbix-proxy](charts/zabbix-proxy) | 0.1.0 | Zabbix 7.0.16 LTS | Chart de plumbing k8s para Zabbix Proxy SQLite. StatefulSet + Service + PVC opcional. Toda config do proxy via `extraEnv`. Suporta Zabbix 7.0 LTS (default) ou 7.4 current via override de `image.tag`. |
 
 ## Instalação
 
@@ -19,11 +19,10 @@ helm install minha-api oci://ghcr.io/rst-services/charts/chart-base \
   --version 0.2.0 \
   -f my-values.yaml
 
-# Install (Zabbix Proxy)
+# Install (Zabbix Proxy) — config via values
 helm install zbx-cliente1 oci://ghcr.io/rst-services/charts/zabbix-proxy \
   --version 0.1.0 \
-  --set serverHost=zabbix.empresa.com.br \
-  --set hostname=PROXY-CLIENTE1
+  -f my-zabbix-values.yaml
 ```
 
 ## Examples
@@ -32,8 +31,8 @@ helm install zbx-cliente1 oci://ghcr.io/rst-services/charts/zabbix-proxy \
 |---|---|
 | [chart-base-deployment.yaml](examples/chart-base-deployment.yaml) | App stateless de cliente (Deployment + Service + probes + securityContext). |
 | [chart-base-statefulset.yaml](examples/chart-base-statefulset.yaml) | StatefulSet genérico com PVC por pod (ex: Redis). |
-| [zabbix-proxy-active.yaml](examples/zabbix-proxy-active.yaml) | Zabbix Proxy ativo, configuração mínima por cliente. |
-| [zabbix-proxy-psk.yaml](examples/zabbix-proxy-psk.yaml) | Zabbix Proxy com TLS PSK (proxy ↔ server criptografado). |
+| [zabbix-proxy-active.yaml](examples/zabbix-proxy-active.yaml) | Zabbix Proxy ativo — config via `extraEnv`. |
+| [zabbix-proxy-psk.yaml](examples/zabbix-proxy-psk.yaml) | Zabbix Proxy com TLS PSK — Secret montado via `extraVolumes`, envs via `extraEnv`. |
 
 ## Convenções
 
@@ -49,11 +48,11 @@ O repositório [helm-zabbix-proxy](https://github.com/robertsilvatech/helm-zabbi
 | helm-zabbix-proxy 1.0.0 | zabbix-proxy 0.1.0 |
 |--|--|
 | `image.repository/tag/imagePullPolicy` | `image.repository/tag/pullPolicy` |
-| (hardcoded) `ZBX_HOSTNAME = upper(Release.Name)` | `hostname` (default: nome do pod via fieldRef) |
-| (hardcoded) `ZBX_SERVER_HOST = zbx-server-mysql-service` | `serverHost` (obrigatório) |
+| (hardcoded) `ZBX_HOSTNAME = upper(Release.Name)` | `extraEnv: [{name: ZBX_HOSTNAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}]` |
+| (hardcoded) `ZBX_SERVER_HOST = zbx-server-mysql-service` | `extraEnv: [{name: ZBX_SERVER_HOST, value: ...}]` |
 | `service.port/targetPort` | `service.port` (target sempre `zbx-proxy`) |
-| (sem persistência) | `persistence.size` (PVC por pod, padrão 5Gi) |
-| (sem PSK) | `psk.{enabled,identity,value,existingSecret}` |
+| (sem persistência) | `persistence.{enabled,size,storageClass,accessMode}` (PVC por pod, padrão 5Gi) |
+| (sem PSK) | Secret + `extraVolumes`/`extraVolumeMounts` + envs via `extraEnv` |
 | (sem securityContext) | `runAsNonRoot:true`, `fsGroup:1997`, `drop: [ALL]` por padrão |
 
 ## Bumping & release

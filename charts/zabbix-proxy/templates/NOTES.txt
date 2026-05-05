@@ -1,19 +1,17 @@
 Zabbix Proxy "{{ include "zabbix-proxy.fullname" . }}" foi instalado.
 
-  Modo:        {{ .Values.mode }}
-  Server host: {{ .Values.serverHost }}
-  Hostname:    {{ if .Values.hostname }}{{ .Values.hostname }}{{ else }}<pod-name>{{ end }}
-  PSK:         {{ ternary "habilitado" "desabilitado" .Values.psk.enabled }}
+  Image:        {{ .Values.image.repository }}:{{ .Values.image.tag }}
+  Persistência: {{ if .Values.persistence.enabled }}{{ .Values.persistence.size }} (PVC){{ else }}emptyDir (efêmero){{ end }}
+  Service:      {{ .Values.service.type }} :{{ .Values.service.port }}
+
+Toda configuração do Zabbix (ZBX_*) vem de `extraEnv`. Para inspecionar o env aplicado:
+  kubectl -n {{ .Release.Namespace }} get statefulset {{ include "zabbix-proxy.fullname" . }} \
+    -o jsonpath='{.spec.template.spec.containers[0].env}' | jq
 
 Próximos passos:
 
-1. No Zabbix Server, cadastre o proxy:
+1. No Zabbix Server, cadastre o proxy com o mesmo nome configurado em ZBX_HOSTNAME:
    Administration → Proxies → Create proxy
-     Name:        {{ if .Values.hostname }}{{ .Values.hostname }}{{ else }}{{ include "zabbix-proxy.fullname" . }}-0{{ end }}
-     Mode:        {{ .Values.mode | title }}
-     {{- if eq .Values.mode "passive" }}
-     Address:     {{ include "zabbix-proxy.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
-     {{- end }}
 
 2. Verifique se o pod está saudável:
    kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}

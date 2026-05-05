@@ -1,50 +1,19 @@
 # =============================================================================
 # zabbix-proxy default values
 # =============================================================================
-# Chart opinionado: defaults vêm prontos para um Zabbix Proxy SQLite ativo.
-# Bastam `serverHost` (obrigatório) e idealmente um `hostname` único.
+# Chart de plumbing k8s (StatefulSet + Service + PVC) para o image
+# zabbix/zabbix-proxy-sqlite3. NÃO trata variáveis do Zabbix — toda
+# configuração do proxy (ZBX_*) deve vir via `extraEnv`.
+#
+# Ref env vars: https://hub.docker.com/r/zabbix/zabbix-proxy-sqlite3
 # =============================================================================
-
-# -----------------------------------------------------------------------------
-# Conexão com Zabbix Server
-# -----------------------------------------------------------------------------
-# Endereço do Zabbix Server (DNS ou IP). Em modo passive, lista de servers permitidos.
-serverHost: ""
-serverPort: 10051
-
-# active | passive
-mode: active
-
-# -----------------------------------------------------------------------------
-# Identidade
-# -----------------------------------------------------------------------------
-# Nome do proxy registrado no Zabbix Server.
-# Vazio = nome do pod (StatefulSet ordinal estável: <release>-zabbix-proxy-0).
-hostname: ""
-
-# -----------------------------------------------------------------------------
-# TLS PSK (proxy <-> server)
-# -----------------------------------------------------------------------------
-psk:
-  enabled: false
-  # ZBX_TLSPSKIDENTITY
-  identity: ""
-  # Provê o PSK por UMA das duas formas:
-  # 1) value: chart cria um Secret com a chave 'proxy.psk'
-  # 2) existingSecret: nome de Secret pré-existente com chave 'proxy.psk'
-  value: ""
-  existingSecret: ""
-
-# -----------------------------------------------------------------------------
-# Tunables Zabbix
-# -----------------------------------------------------------------------------
-proxyBufferMode: hybrid   # disk | memory | hybrid (Zabbix 7+)
-timeout: 30
-debugLevel: 3
 
 # -----------------------------------------------------------------------------
 # Imagem
 # -----------------------------------------------------------------------------
+# Default: Zabbix 7.0 LTS (suportado até 2029) — recomendado para produção.
+# Para usar 7.4 (current release, features novas), sobrescreva tag: ubuntu-7.4-latest.
+# Tags disponíveis: https://hub.docker.com/r/zabbix/zabbix-proxy-sqlite3/tags
 image:
   repository: zabbix/zabbix-proxy-sqlite3
   tag: ubuntu-7.0-latest
@@ -54,7 +23,10 @@ imagePullSecrets: []
 # -----------------------------------------------------------------------------
 # Persistência (SQLite buffer)
 # -----------------------------------------------------------------------------
+# enabled=false → /var/lib/zabbix vira emptyDir (fila SQLite perdida a cada restart).
+# Use só em dev/teste; em produção mantenha enabled=true.
 persistence:
+  enabled: true
   size: 5Gi
   storageClass: ""
   accessMode: ReadWriteOnce
@@ -73,8 +45,6 @@ resources:
     memory: 1Gi
 
 podAnnotations: {}
-  # prometheus.io/scrape: "true"
-  # prometheus.io/port: "10051"
 podLabels: {}
 
 nodeSelector: {}
@@ -99,19 +69,38 @@ serviceAccount:
   annotations: {}
 
 # -----------------------------------------------------------------------------
-# Escape hatches
+# Configuração do Zabbix Proxy (env vars ZBX_*)
 # -----------------------------------------------------------------------------
-# env adicional (formato nativo k8s, suporta valueFrom)
+# TODA configuração do proxy entra aqui — defaults do image aplicam quando
+# não setado. Mínimo recomendado: ZBX_HOSTNAME e ZBX_SERVER_HOST.
+# Ref: https://hub.docker.com/r/zabbix/zabbix-proxy-sqlite3
 extraEnv: []
-  # - name: ZBX_VAULTURL
-  #   value: https://vault.example.com
+  # - name: ZBX_HOSTNAME
+  #   valueFrom:
+  #     fieldRef:
+  #       fieldPath: metadata.name        # usa o nome do pod (StatefulSet ordinal)
+  # - name: ZBX_SERVER_HOST
+  #   value: "zabbix.empresa.com.br"
+  # - name: ZBX_PROXYMODE
+  #   value: "0"                          # 0=active (default) | 1=passive
+  # - name: ZBX_PROXYBUFFERMODE
+  #   value: "hybrid"
+  # - name: ZBX_DEBUGLEVEL
+  #   value: "3"
+  # - name: ZBX_TIMEOUT
+  #   value: "30"
 
-# Volumes/mounts adicionais (ex: configmap com snippets em /etc/zabbix/zabbix_proxy.d)
+# Volumes/mounts adicionais — útil pra montar Secret de PSK, snippets em
+# /etc/zabbix/zabbix_proxy.d, certificados TLS, etc.
 extraVolumes: []
-  # - name: snippets
-  #   configMap:
-  #     name: zabbix-proxy-snippets
+  # - name: psk
+  #   secret:
+  #     secretName: zbx-proxy-psk
+  #     items:
+  #       - key: proxy.psk
+  #         path: proxy.psk
+  #         mode: 0400
 extraVolumeMounts: []
-  # - name: snippets
-  #   mountPath: /etc/zabbix/zabbix_proxy.d
+  # - name: psk
+  #   mountPath: /var/lib/zabbix/.psk
   #   readOnly: true
