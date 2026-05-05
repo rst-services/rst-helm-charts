@@ -11,26 +11,20 @@ Helm charts mantidos por [@robertsilvatech](https://github.com/robertsilvatech),
 
 ## Instalação
 
-> ⚠️ **Packages são privados.** É necessário um Personal Access Token (PAT) do GitHub com escopo `read:packages` para autenticar antes de instalar. Veja o [guia de onboarding de cliente](docs/onboarding-cliente.md) para o passo-a-passo completo.
+Packages são públicos — `helm install` direto, sem login.
 
 ```bash
-# 1. Login uma vez (PAT em variável de ambiente)
-echo "$GITHUB_PAT" | helm registry login ghcr.io \
-  --username <seu-bot-username> --password-stdin
-
-# 2. Install (chart genérico)
+# Install (chart genérico)
 helm install minha-api oci://ghcr.io/rst-services/charts/chart-base \
   --version 0.2.0 \
   -f my-values.yaml
 
-# 3. Install (Zabbix Proxy)
+# Install (Zabbix Proxy)
 helm install zbx-cliente1 oci://ghcr.io/rst-services/charts/zabbix-proxy \
   --version 0.1.0 \
   --set serverHost=zabbix.empresa.com.br \
   --set hostname=PROXY-CLIENTE1
 ```
-
-Para criar PAT, autenticar e rotacionar credenciais, siga [docs/onboarding-cliente.md](docs/onboarding-cliente.md).
 
 ## Examples
 

@@ -40,32 +40,27 @@
 
 ## 5. Documento de onboarding de cliente
 
-- [x] 5.1 Criar `docs/onboarding-cliente.md` com seção "1. Criar PAT no GitHub": instruções UI (Settings → Developer settings → Personal access tokens → Fine-grained tokens), scope `read:packages`, expiração 90 dias, repo access `Selected repositories: rst-services/rst-helm-charts` *(seção descreve o processo no contexto Padrão 2: PAT é gerado pelo admin, não pelo cliente)*
-- [x] 5.2 Seção "2. Login no registry OCI": comando `echo $PAT | helm registry login ghcr.io -u <bot-username> --password-stdin` com placeholders explícitos
-- [x] 5.3 Seção "3. Primeiro install": exemplos para `chart-base` e `zabbix-proxy` com placeholders e `-f my-values.yaml`
-- [x] 5.4 Seção "4. Rotação de PAT": gerar novo PAT antes da expiração, `helm registry logout ghcr.io`, novo `helm registry login`, validar com `helm pull` de teste
-- [x] 5.5 Seção "5. Troubleshooting comum": "auth required" → expirado/sem scope correto; "manifest unknown" → versão errada; "denied" → bot user sem acesso ao package
-- [x] 5.6 Adicionar nota no topo: "Documento entregue ao cliente junto com bot username e PAT por canal seguro"
+- [x] 5.1–5.6 Doc `docs/onboarding-cliente.md` foi criado durante a change, mas **deletado após decisão de mudar visibilidade dos packages para público** (2026-05-04). Sem PAT/auth, o doc virou repetição do README. Tasks originais (criação de PAT, login, rotação, troubleshooting de auth) ficaram obsoletas.
 
 ## 6. Validação local (antes do primeiro release)
 
 - [x] 6.1 Validar sintaxe YAML dos workflows com `actionlint` localmente (ou via container `rhysd/actionlint`)
 - [x] 6.2 Simular extração de release notes localmente: rodar o awk/sed snippet sobre `charts/chart-base/CHANGELOG.md` e validar saída
 - [x] 6.3 Simular `helm package` localmente: `helm package charts/chart-base` e inspecionar `chart-base-0.2.0.tgz`
-- [ ] 6.4 Verificar que `helm push` funciona via teste manual em uma tag de "dry-run" prévia (ex: `chart-base-0.2.0-rc1`) — apagar package após teste *(deferido para o grupo 7 — requer repo no GitHub criado e tag pushada)*
-- [ ] 6.5 Confirmar visibilidade default do package após primeiro push (private esperado); ajustar se necessário via UI *(deferido para o grupo 7)*
+- [x] 6.4 `helm push` validado em produção via tag real (sem rc1 — direto pra release) em 2026-05-04
+- [x] 6.5 Visibilidade do package: default era "private"; **flipada para "public"** após habilitar packages públicos na org `rst-services` (org settings → packages)
 
 ## 7. Primeiro release oficial
 
-- [ ] 7.1 Garantir que `charts/chart-base/CHANGELOG.md` tem seção `## 0.2.0` completa (já está — verificar)
-- [ ] 7.2 Garantir que `charts/zabbix-proxy/CHANGELOG.md` tem seção `## 0.1.0` completa (já está — verificar)
-- [ ] 7.3 Push da tag `chart-base-0.2.0` em `main`; aguardar workflow completar; verificar package em `github.com/orgs/rst-services/packages` E GitHub Release criada
-- [ ] 7.4 Push da tag `zabbix-proxy-0.1.0`; mesma verificação
-- [ ] 7.5 Smoke test em cluster pessoal: `helm registry login` + `helm install oci://...` para cada chart, confirmando install end-to-end
-- [ ] 7.6 Atualizar `README.md` raiz para refletir que os primeiros releases foram publicados (substitui "Ainda não publicado" se ainda houver)
+- [x] 7.1 `charts/chart-base/CHANGELOG.md` seção `## 0.2.0` verificada
+- [x] 7.2 `charts/zabbix-proxy/CHANGELOG.md` seção `## 0.1.0` verificada
+- [x] 7.3 Tag `chart-base-0.2.0` pushada em 2026-05-04; workflow `Release Chart` succeeded em 25s; package + GitHub Release criados
+- [x] 7.4 Tag `zabbix-proxy-0.1.0` pushada em 2026-05-04; workflow succeeded em 24s; package + GitHub Release criados
+- [x] 7.5 Smoke test: `helm pull oci://ghcr.io/rst-services/charts/chart-base --version 0.2.0` e `zabbix-proxy --version 0.1.0` anônimo (sem login) — ambos puxaram .tgz com sucesso
+- [x] 7.6 `README.md` raiz atualizado: removido aviso "packages privados", install simplificado (sem `helm registry login`), link pro doc deletado removido
 
 ## 8. Documentação da change
 
 - [x] 8.1 Atualizar `charts/chart-base/CHANGELOG.md` se algum ajuste em 0.2.0 for necessário (ex: nota de "primeira release publicada via GitHub") — adicionada nota de distribuição OCI no topo da seção 0.2.0
 - [x] 8.2 Atualizar `charts/zabbix-proxy/CHANGELOG.md` similarmente se aplicável — adicionada nota de distribuição OCI no topo da seção 0.1.0
-- [ ] 8.3 Após primeiro release bem-sucedido, executar `openspec archive publish-via-github-actions` para promover specs e arquivar *(deferido — depende do grupo 7)*
+- [ ] 8.3 Executar `openspec archive publish-via-github-actions` para promover specs e arquivar — passo final, agora desbloqueado

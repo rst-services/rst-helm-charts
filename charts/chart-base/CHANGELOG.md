@@ -4,7 +4,7 @@
 
 Primeira release pública (vinda do `chart-base 0.1.4` interno do GitLab Sanasa). Inclui mudanças **breaking** no selector — instalações vindas de 0.1.x exigem `helm uninstall` + `helm install` (selectors são imutáveis).
 
-> **Distribuição**: a partir desta versão, o chart é publicado como package OCI privado em `oci://ghcr.io/rst-services/charts/chart-base`. Veja [`docs/onboarding-cliente.md`](../../docs/onboarding-cliente.md) para autenticação.
+> **Distribuição**: a partir desta versão, o chart é publicado como package OCI público em `oci://ghcr.io/rst-services/charts/chart-base` — `helm install` direto, sem auth.
 
 ### Adicionado
 

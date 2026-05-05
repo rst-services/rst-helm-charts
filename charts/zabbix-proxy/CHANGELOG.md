@@ -4,7 +4,7 @@
 
 Primeira release. Substitui o repositório [helm-zabbix-proxy](https://github.com/robertsilvatech/helm-zabbix-proxy) (deprecado).
 
-> **Distribuição**: chart publicado como package OCI privado em `oci://ghcr.io/rst-services/charts/zabbix-proxy`. Veja [`docs/onboarding-cliente.md`](../../docs/onboarding-cliente.md) para autenticação.
+> **Distribuição**: chart publicado como package OCI público em `oci://ghcr.io/rst-services/charts/zabbix-proxy` — `helm install` direto, sem auth.
 
 ### Adicionado
 
