@@ -80,6 +80,19 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/zabbix
+            {{- /*
+              AIDEV-NOTE: Zabbix 7.4+ cria o SQLite em /var/lib/zabbix/db_data/<host>.sqlite.
+              Quando persistence.enabled=false, /var/lib/zabbix é emptyDir vazio e a
+              subpasta db_data não existe → entrypoint falha com ENOENT. Auto-injetamos
+              um emptyDir extra montado em /var/lib/zabbix/db_data só nesse caso.
+              Com PVC (persistence.enabled=true) NÃO injetamos: o PVC já cobre db_data
+              como subpasta, e injetar sobreporia com emptyDir efêmero, derrotando
+              silenciosamente a persistência.
+            */}}
+            {{- if not .Values.persistence.enabled }}
+            - name: db-data
+              mountPath: /var/lib/zabbix/db_data
+            {{- end }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -87,6 +100,8 @@ spec:
       volumes:
         {{- if not .Values.persistence.enabled }}
         - name: data
+          emptyDir: {}
+        - name: db-data
           emptyDir: {}
         {{- end }}
         {{- with .Values.extraVolumes }}

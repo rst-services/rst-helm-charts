@@ -25,6 +25,10 @@ imagePullSecrets: []
 # -----------------------------------------------------------------------------
 # enabled=false → /var/lib/zabbix vira emptyDir (fila SQLite perdida a cada restart).
 # Use só em dev/teste; em produção mantenha enabled=true.
+#
+# AIDEV-NOTE: quando enabled=false o template auto-injeta um segundo emptyDir
+# em /var/lib/zabbix/db_data — Zabbix 7.4+ cria o SQLite nessa subpasta e ela
+# não existe num emptyDir raiz vazio, fazendo o pod morrer com ENOENT.
 persistence:
   enabled: true
   size: 5Gi
