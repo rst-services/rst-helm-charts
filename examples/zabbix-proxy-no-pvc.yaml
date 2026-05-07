@@ -1,0 +1,39 @@
+# Exemplo: Zabbix Proxy SEM PVC (cluster sem StorageClass disponível).
+#
+# Quando persistence.enabled=false, /var/lib/zabbix vira emptyDir. O chart
+# auto-injeta um segundo emptyDir em /var/lib/zabbix/db_data — necessário
+# pra Zabbix 7.4+ não falhar com "db_data: No such file or directory".
+#
+# ATENÇÃO: a fila SQLite é perdida a cada restart do pod. Use buffer
+# `hybrid` ou `memory` no extraEnv pra mitigar parcialmente.
+#
+# helm install zbx-cliente1 rst/zabbix-proxy -f examples/zabbix-proxy-no-pvc.yaml
+
+persistence:
+  enabled: false                       # /var/lib/zabbix vira emptyDir
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+# Toda config do Zabbix entra aqui — chaves seguem o naming nativo do image.
+# Ref: https://hub.docker.com/r/zabbix/zabbix-proxy-sqlite3
+extraEnv:
+  - name: ZBX_HOSTNAME
+    value: "PROXY-CLIENTE1"
+  - name: ZBX_SERVER_HOST
+    value: "zabbix.empresa.com.br"
+  - name: ZBX_PROXYMODE
+    value: "0"                          # 0=active (default) | 1=passive
+  - name: ZBX_PROXYBUFFERMODE
+    value: "hybrid"                     # mitiga perda no restart com buffer em RAM
+  - name: ZBX_PROXYMEMORYBUFFERSIZE     # obrigatório quando PROXYBUFFERMODE=memory|hybrid
+    value: "256M"
+  - name: ZBX_DEBUGLEVEL
+    value: "3"
+  - name: ZBX_TIMEOUT
+    value: "30"

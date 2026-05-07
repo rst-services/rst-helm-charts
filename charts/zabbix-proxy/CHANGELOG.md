@@ -1,5 +1,17 @@
 # Changelog — zabbix-proxy
 
+## 0.3.0
+
+Auto-injeção de `db_data` quando `persistence.enabled=false` — corrige falha de boot do Zabbix 7.4+ em modo emptyDir.
+
+### Adicionado
+
+- Quando `persistence.enabled=false`, o template agora injeta automaticamente um segundo `emptyDir` montado em `/var/lib/zabbix/db_data`. Sem isso o entrypoint do Zabbix 7.4+ falha com `cannot open database file "/var/lib/zabbix/db_data/<host>.sqlite": [2] No such file or directory` — a subpasta `db_data/` não existe num emptyDir raiz vazio. Com `persistence.enabled=true` nada é injetado: o PVC já cobre `db_data` como subpasta.
+
+### Migração
+
+Sem ação para a maioria dos clientes. Quem havia adicionado manualmente o workaround `extraVolumes`/`extraVolumeMounts` para `db_data` em versões anteriores **deve removê-lo** do values — o chart agora cuida disso automaticamente. Manter o workaround manual continua funcionando, mas é redundante.
+
 ## 0.2.0
 
 Republicação do chart com o contrato definitivo "plumbing-only" (`extraEnv`-based) e documentação da regra `ProxyMemoryBufferSize`.
