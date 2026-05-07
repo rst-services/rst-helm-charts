@@ -22,7 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       charts: ${{ steps.filter.outputs.changes }}
-      any: ${{ steps.filter.outputs.any_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,18 +41,10 @@ jobs:
               - 'charts/zabbix-proxy/**'
               - 'examples/zabbix-proxy-*.yaml'
 
-      - name: Compute any_changed
-        run: |
-          if [ "${{ steps.filter.outputs.changes }}" = "[]" ]; then
-            echo "any_changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "any_changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
   lint-and-template:
     name: Lint + template (${{ matrix.chart }})
     needs: detect-charts
-    if: needs.detect-charts.outputs.any == 'true'
+    if: needs.detect-charts.outputs.charts != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -89,7 +80,7 @@ jobs:
   no-charts-changed:
     name: Sem charts modificados
     needs: detect-charts
-    if: needs.detect-charts.outputs.any == 'false'
+    if: needs.detect-charts.outputs.charts == '[]'
     runs-on: ubuntu-latest
     steps:
       - run: echo "Nenhum chart foi modificado neste PR — validação rápida finalizada."
