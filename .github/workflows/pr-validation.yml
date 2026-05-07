@@ -70,16 +70,7 @@ jobs:
       - name: helm lint
         run: |
           set -euo pipefail
-          # Para charts que exigem `required`, fornecemos placeholder mínimo
-          # apenas para o lint passar (não afeta correctness do chart).
-          case "${{ matrix.chart }}" in
-            zabbix-proxy)
-              helm lint "charts/${{ matrix.chart }}" --set serverHost=ci-test.example.com
-              ;;
-            *)
-              helm lint "charts/${{ matrix.chart }}"
-              ;;
-          esac
+          helm lint "charts/${{ matrix.chart }}"
 
       - name: helm template (todos os examples relacionados)
         run: |
@@ -92,16 +83,7 @@ jobs:
           fi
           for f in "${examples[@]}"; do
             echo "=== rendering $f ==="
-            case "${{ matrix.chart }}" in
-              zabbix-proxy)
-                # zabbix-proxy-psk.yaml deixa psk.value vazio propositalmente;
-                # injetamos placeholder pra render passar.
-                helm template ci "charts/${{ matrix.chart }}" -f "$f" --set psk.value=ci-placeholder > /dev/null
-                ;;
-              *)
-                helm template ci "charts/${{ matrix.chart }}" -f "$f" > /dev/null
-                ;;
-            esac
+            helm template ci "charts/${{ matrix.chart }}" -f "$f" > /dev/null
           done
 
   no-charts-changed:

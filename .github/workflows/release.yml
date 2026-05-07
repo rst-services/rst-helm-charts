@@ -122,16 +122,14 @@ jobs:
             fi
           fi
 
-          # Adiciona trailer com instalação OCI (sem heredoc pra não conflitar
-          # com indentação do block scalar YAML).
+          # Adiciona trailer com instalação OCI. Package é público no GHCR —
+          # cliente NÃO precisa de `helm registry login`.
           {
             printf '\n---\n\n'
             printf '### Instalação\n\n'
             printf '```bash\n'
-            printf 'helm registry login ghcr.io\n'
             printf 'helm install <release-name> oci://ghcr.io/rst-services/charts/%s --version %s\n' "$CHART" "$VER"
-            printf '```\n\n'
-            printf 'Detalhes em [docs/onboarding-cliente.md](https://github.com/%s/blob/main/docs/onboarding-cliente.md).\n' "${{ github.repository }}"
+            printf '```\n'
           } >> "$NOTES_FILE"
 
           echo "notes_file=${NOTES_FILE}" >> "$GITHUB_OUTPUT"

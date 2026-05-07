@@ -25,6 +25,8 @@ extraEnv:
     value: "0"                          # 0=active (default) | 1=passive
   - name: ZBX_PROXYBUFFERMODE
     value: "hybrid"
+  - name: ZBX_PROXYMEMORYBUFFERSIZE     # obrigatório quando PROXYBUFFERMODE=memory|hybrid
+    value: "256M"
   - name: ZBX_DEBUGLEVEL
     value: "3"
   - name: ZBX_TIMEOUT
