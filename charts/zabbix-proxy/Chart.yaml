@@ -2,7 +2,7 @@ apiVersion: v2
 name: zabbix-proxy
 description: Chart Helm de plumbing k8s para Zabbix Proxy (SQLite). StatefulSet + Service + PVC opcional. Toda config do proxy via extraEnv.
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "7.0.16"
 keywords:
   - zabbix

@@ -63,4 +63,4 @@
 
 - [x] 8.1 Atualizar `charts/chart-base/CHANGELOG.md` se algum ajuste em 0.2.0 for necessário (ex: nota de "primeira release publicada via GitHub") — adicionada nota de distribuição OCI no topo da seção 0.2.0
 - [x] 8.2 Atualizar `charts/zabbix-proxy/CHANGELOG.md` similarmente se aplicável — adicionada nota de distribuição OCI no topo da seção 0.1.0
-- [ ] 8.3 Executar `openspec archive publish-via-github-actions` para promover specs e arquivar — passo final, agora desbloqueado
+- [x] 8.3 Executar `openspec archive publish-via-github-actions` para promover specs e arquivar — passo final, agora desbloqueado

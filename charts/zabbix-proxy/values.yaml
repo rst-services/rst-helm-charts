@@ -74,6 +74,12 @@ serviceAccount:
 # TODA configuração do proxy entra aqui — defaults do image aplicam quando
 # não setado. Mínimo recomendado: ZBX_HOSTNAME e ZBX_SERVER_HOST.
 # Ref: https://hub.docker.com/r/zabbix/zabbix-proxy-sqlite3
+#
+# IMPORTANTE: quando ZBX_PROXYBUFFERMODE for "memory" ou "hybrid", o binário
+# do Zabbix exige ZBX_PROXYMEMORYBUFFERSIZE. Sem ele o pod sobe e morre com:
+#   ERROR: ProxyMemoryBufferSize configuration parameter must be set when
+#          ProxyBufferMode parameter is set to "memory" or "hybrid"
+# Declare ambos juntos no extraEnv (ver exemplo abaixo).
 extraEnv: []
   # - name: ZBX_HOSTNAME
   #   valueFrom:
@@ -84,7 +90,9 @@ extraEnv: []
   # - name: ZBX_PROXYMODE
   #   value: "0"                          # 0=active (default) | 1=passive
   # - name: ZBX_PROXYBUFFERMODE
-  #   value: "hybrid"
+  #   value: "hybrid"                     # disk | memory | hybrid
+  # - name: ZBX_PROXYMEMORYBUFFERSIZE
+  #   value: "256M"                       # obrigatório se PROXYBUFFERMODE=memory|hybrid
   # - name: ZBX_DEBUGLEVEL
   #   value: "3"
   # - name: ZBX_TIMEOUT
